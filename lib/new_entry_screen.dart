@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+import 'package:landmark_records/landmark_provider.dart';
+import 'package:provider/provider.dart';
 
 class NewEntryScreen extends StatefulWidget {
   const NewEntryScreen({super.key});
@@ -21,144 +22,141 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
   Future<void> _getImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 800, maxHeight: 600);
-
-    setState(() {
-      if (pickedFile != null) {
-        _image = File(pickedFile.path);
-      } else {
-        print('No image selected.');
-      }
-    });
+    if (pickedFile != null) {
+      setState(() => _image = File(pickedFile.path));
+    }
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
+    try {
+      Position position = await _determinePosition();
+      setState(() {
+        _latController.text = position.latitude.toString();
+        _lonController.text = position.longitude.toString();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return Future.error('Location permissions are denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error(
-          'Location permissions are permanently denied, we cannot request permissions.');
-    }
-
-    Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _latController.text = position.latitude.toString();
-      _lonController.text = position.longitude.toString();
-    });
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState!.validate() && _image != null) {
-      var request = http.MultipartRequest('POST', Uri.parse('https://labs.anontech.info/cse489/t3/api.php'));
-      request.fields['title'] = _titleController.text;
-      request.fields['lat'] = _latController.text;
-      request.fields['lon'] = _lonController.text;
-      request.files.add(await http.MultipartFile.fromPath('image', _image!.path));
-
-      var response = await request.send();
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Landmark added successfully!')));
-        _formKey.currentState!.reset();
-        setState(() {
-          _image = null;
-        });
-      } else {
-        showDialog(context: context, builder: (context) {
-          return AlertDialog(
-            title: Text('Error'),
-            content: Text('Failed to add landmark. Please try again.'),
-            actions: [
-              TextButton(onPressed: () {Navigator.of(context).pop();}, child: Text('OK'))
-            ],
-          );
-        });
+    if (_formKey.currentState!.validate()) {
+      if (_image == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image.')));
+        return;
       }
-    } else {
-        showDialog(context: context, builder: (context) {
-          return AlertDialog(
-            title: Text('Error'),
-            content: Text('Please fill all fields and select an image.'),
-            actions: [
-              TextButton(onPressed: () {Navigator.of(context).pop();}, child: Text('OK'))
-            ],
-          );
-        });
+      try {
+        await Provider.of<LandmarkProvider>(context, listen: false).addLandmark(
+          _titleController.text,
+          double.parse(_latController.text),
+          double.parse(_lonController.text),
+          _image!.path,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Landmark added successfully!')));
+        _formKey.currentState!.reset();
+        setState(() => _image = null);
+      } catch (e) {
+        showDialog(context: context, builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to add landmark: ${e.toString()}'),
+          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+        ));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: <Widget>[
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(labelText: 'Title'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _buildImagePicker(),
+            const SizedBox(height: 24),
+            _buildTextFormField(_titleController, 'Title', Icons.title),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, TextInputType.number)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, TextInputType.number)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.my_location),
+              label: const Text('Get Current Location'),
+              onPressed: _getCurrentLocation,
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add_location_alt_rounded),
+              label: const Text('Add Landmark'),
+              onPressed: _submitForm,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              TextFormField(
-                controller: _latController,
-                decoration: InputDecoration(labelText: 'Latitude'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a latitude';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _lonController,
-                decoration: InputDecoration(labelText: 'Longitude'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a longitude';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 20),
-              _image == null ? Text('No image selected.') : Image.file(_image!, height: 200),
-              ElevatedButton(
-                onPressed: _getImage,
-                child: Text('Select Image'),
-              ),
-              ElevatedButton(
-                onPressed: _getCurrentLocation,
-                child: Text('Get Current Location'),
-              ),
-              ElevatedButton(
-                onPressed: _submitForm,
-                child: Text('Add Landmark'),
-              )
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: _getImage,
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(15.0),
+          border: Border.all(color: Colors.grey[400]!, width: 2),
+        ),
+        child: _image != null
+            ? ClipRRect(borderRadius: BorderRadius.circular(13.0), child: Image.file(_image!, fit: BoxFit.cover))
+            : const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [Icon(Icons.camera_alt, size: 50, color: Colors.grey), Text('Tap to select an image')],
+                ),
+              ),
+      ),
+    );
+  }
+
+  TextFormField _buildTextFormField(TextEditingController controller, String label, IconData icon, [TextInputType? keyboardType]) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      keyboardType: keyboardType,
+      validator: (value) => (value == null || value.isEmpty) ? 'Please enter a $label' : null,
+    );
+  }
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return Future.error('Location services are disabled.');
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return Future.error('Location permissions are denied');
+    }
+    
+    if (permission == LocationPermission.deniedForever) return Future.error('Location permissions are permanently denied.');
+
+    return await Geolocator.getCurrentPosition();
   }
 }

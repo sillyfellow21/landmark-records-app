@@ -28,14 +28,22 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      await Provider.of<LandmarkProvider>(context, listen: false).updateLandmark(
-        widget.landmark.id,
-        _titleController.text,
-        double.parse(_latController.text),
-        double.parse(_lonController.text),
-      );
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${widget.landmark.title} updated')));
+      try {
+        await Provider.of<LandmarkProvider>(context, listen: false).updateLandmark(
+          widget.landmark.id,
+          _titleController.text,
+          double.parse(_latController.text),
+          double.parse(_lonController.text),
+        );
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${widget.landmark.title} updated')));
+      } catch (e) {
+        showDialog(context: context, builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to update landmark: ${e.toString()}'),
+          actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+        ));
+      }
     }
   }
 
@@ -43,57 +51,54 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Landmark'),
+        title: const Text('Edit Landmark'),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: <Widget>[
-                TextFormField(
-                  controller: _titleController,
-                  decoration: InputDecoration(labelText: 'Title'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a title';
-                    }
-                    return null;
-                  },
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _buildTextFormField(_titleController, 'Title', Icons.title),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, TextInputType.number)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, TextInputType.number)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save_as_rounded),
+                label: const Text('Update Landmark'),
+                onPressed: _submitForm,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                TextFormField(
-                  controller: _latController,
-                  decoration: InputDecoration(labelText: 'Latitude'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a latitude';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _lonController,
-                  decoration: InputDecoration(labelText: 'Longitude'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a longitude';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _submitForm,
-                  child: Text('Update Landmark'),
-                )
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  TextFormField _buildTextFormField(TextEditingController controller, String label, IconData icon, [TextInputType? keyboardType]) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      keyboardType: keyboardType,
+      validator: (value) => (value == null || value.isEmpty) ? 'Please enter a $label' : null,
     );
   }
 }

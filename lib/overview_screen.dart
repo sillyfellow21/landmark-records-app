@@ -1,151 +1,187 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart' as latLng;
 import 'package:landmark_records/edit_landmark_screen.dart';
 import 'package:landmark_records/landmark.dart';
 import 'package:landmark_records/landmark_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 
-class OverviewScreen extends StatelessWidget {
+class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
 
-  void _showBottomSheet(BuildContext context, Landmark landmark) {
-    final baseImageName = landmark.image.split('.').first.split('/').last;
-    final localImagePathJpg = 'assets/images/$baseImageName.jpg';
-    final localImagePathJpeg = 'assets/images/$baseImageName.jpeg';
+  @override
+  State<OverviewScreen> createState() => _OverviewScreenState();
+}
 
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          height: 200,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                Text(landmark.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                SizedBox(height: 10),
-                Image.asset(
-                  localImagePathJpg,
-                  height: 100,
-                  errorBuilder: (context, error, stackTrace) {
-                    // If .jpg fails, try .jpeg
-                    return Image.asset(
-                      localImagePathJpeg,
-                      height: 100,
-                      errorBuilder: (context, error, stackTrace) {
-                        // If local assets fail, fall back to the network image.
-                        return Image.network(
-                          landmark.image,
-                          height: 100,
-                          errorBuilder: (context, error, stackTrace) {
-                            // If the network image also fails, show a placeholder.
-                            return Container(
-                              width: 100,
-                              height: 100,
-                              color: Colors.grey[300],
-                              child: Icon(Icons.broken_image, color: Colors.grey[600]),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditLandmarkScreen(landmark: landmark),
-                          ),
-                        );
-                      },
-                      child: Text("Edit"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context); // Close bottom sheet
-                        showDialog<bool>(
-                          context: context,
-                          builder: (BuildContext dialogContext) {
-                            return AlertDialog(
-                              title: const Text('Confirm Delete'),
-                              content: Text('Are you sure you want to delete ${landmark.title}?'),
-                              actions: <Widget>[
-                                TextButton(
-                                  child: const Text('Cancel'),
-                                  onPressed: () {
-                                    Navigator.of(dialogContext).pop(false);
-                                  },
-                                ),
-                                TextButton(
-                                  child: const Text('Delete'),
-                                  onPressed: () {
-                                    Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
-                                    Navigator.of(dialogContext).pop(true);
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
-                                  },
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      child: Text("Delete"),
-                    ),
-                  ],
-                )
-              ],
-            ),
-          ),
-        );
-      },
-    );
+class _OverviewScreenState extends State<OverviewScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<LandmarkProvider>(
       builder: (context, landmarkProvider, child) {
-        if (landmarkProvider.landmarks.isEmpty) {
+        if (landmarkProvider.state == AppState.loading) {
           return const Center(child: CircularProgressIndicator());
         }
 
         return FlutterMap(
-          options: MapOptions(
+          options: const MapOptions(
             initialCenter: latLng.LatLng(23.6850, 90.3563),
             initialZoom: 7.0,
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.landmark_records',
+              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
             ),
-            MarkerLayer(
-              markers: landmarkProvider.landmarks.map((landmark) {
-                return Marker(
-                  width: 80.0,
-                  height: 80.0,
-                  point: latLng.LatLng(landmark.lat, landmark.lon),
-                  child: GestureDetector(
-                    onTap: () {
-                      _showBottomSheet(context, landmark);
-                    },
-                    child: Icon(
-                      Icons.location_pin,
-                      color: Colors.red,
-                      size: 40.0,
-                    ),
-                  ),
-                );
-              }).toList(),
+            _buildMarkerClusterLayer(context, landmarkProvider.landmarks),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMarkerClusterLayer(BuildContext context, List<Landmark> landmarks) {
+    return MarkerClusterLayerWidget(
+      options: MarkerClusterOptions(
+        maxClusterRadius: 80,
+        size: const Size(40, 40),
+        anchor: AnchorPos.align(AnchorAlign.center),
+        fitBoundsOptions: const FitBoundsOptions(padding: EdgeInsets.all(50)),
+        markers: landmarks.map((landmark) => _buildAnimatedMarker(context, landmark)).toList(),
+        builder: (context, markers) {
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).primaryColor,
             ),
+            child: Center(
+              child: Text(
+                markers.length.toString(),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Marker _buildAnimatedMarker(BuildContext context, Landmark landmark) {
+    return Marker(
+      width: 40.0,
+      height: 40.0,
+      point: latLng.LatLng(landmark.lat, landmark.lon),
+      child: GestureDetector(
+        onTap: () => _showLandmarkBottomSheet(context, landmark),
+        child: ScaleTransition(
+          scale: CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: Theme.of(context).primaryColor, width: 3),
+            ),
+            child: const Icon(Icons.location_pin, color: Colors.redAccent, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLandmarkBottomSheet(BuildContext context, Landmark landmark) {
+    final baseImageName = landmark.image.split('.').first.split('/').last;
+    final localImagePathJpg = 'assets/images/$baseImageName.jpg';
+    final localImagePathJpeg = 'assets/images/$baseImageName.jpeg';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(landmark.title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(15.0),
+                child: Image.asset(
+                  localImagePathJpg, height: 150, width: double.infinity, fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      localImagePathJpeg, height: 150, width: double.infinity, fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return CachedNetworkImage(
+                          imageUrl: landmark.image, height: 150, width: double.infinity, fit: BoxFit.cover,
+                          placeholder: (context, url) => Shimmer.fromColors(
+                            baseColor: Colors.grey[300]!, highlightColor: Colors.grey[100]!,
+                            child: Container(color: Colors.white, height: 150),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: 150, color: Colors.grey[300],
+                            child: Icon(Icons.broken_image_outlined, color: Colors.grey[600], size: 50),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(icon: const Icon(Icons.edit), label: const Text("Edit"), onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context, MaterialPageRoute(builder: (context) => EditLandmarkScreen(landmark: landmark)),
+                    ).then((_) => Provider.of<LandmarkProvider>(context, listen: false).fetchLandmarks(isRefresh: true));
+                  }),
+                  ElevatedButton.icon(icon: const Icon(Icons.delete), label: const Text("Delete"), onPressed: () {
+                    Navigator.pop(context);
+                    _confirmDelete(context, landmark);
+                  }),
+                ],
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, Landmark landmark) {
+    showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: Text('Are you sure you want to delete ${landmark.title}?'),
+          actions: <Widget>[
+            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(dialogContext).pop(false)),
+            TextButton(child: const Text('Delete'), onPressed: () async {
+              await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
+              Navigator.of(dialogContext).pop(true);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
+            }),
           ],
         );
       },
