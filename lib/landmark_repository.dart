@@ -67,14 +67,31 @@ class LandmarkRepository {
     }
   }
 
-  Future<void> updateLandmark(String id, String title, double lat, double lon) async {
-    final response = await http.put(
-      Uri.parse(_apiUrl),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {'id': id, 'title': title, 'lat': lat.toString(), 'lon': lon.toString()},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update landmark');
+  Future<void> updateLandmark(String id, String title, double lat, double lon, [String? imagePath]) async {
+    // If no image is being updated, use the simple x-www-form-urlencoded PUT request.
+    if (imagePath == null) {
+      final response = await http.put(
+        Uri.parse(_apiUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'id': id, 'title': title, 'lat': lat.toString(), 'lon': lon.toString()},
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update landmark text data');
+      }
+    } else {
+      // If an image is being updated, we must use a multipart PUT request.
+      // Note: The standard http.MultipartRequest is for POST, but we can set its method to PUT.
+      var request = http.MultipartRequest('PUT', Uri.parse(_apiUrl));
+      request.fields['id'] = id;
+      request.fields['title'] = title;
+      request.fields['lat'] = lat.toString();
+      request.fields['lon'] = lon.toString();
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+      var response = await request.send();
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update landmark with image');
+      }
     }
   }
 }

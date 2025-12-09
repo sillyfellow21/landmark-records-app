@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:landmark_records/landmark.dart';
 import 'package:landmark_records/landmark_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class EditLandmarkScreen extends StatefulWidget {
   final Landmark landmark;
@@ -17,6 +20,8 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
   late TextEditingController _titleController;
   late TextEditingController _latController;
   late TextEditingController _lonController;
+  File? _image;
+  final picker = ImagePicker();
 
   @override
   void initState() {
@@ -24,6 +29,13 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
     _titleController = TextEditingController(text: widget.landmark.title);
     _latController = TextEditingController(text: widget.landmark.lat.toString());
     _lonController = TextEditingController(text: widget.landmark.lon.toString());
+  }
+
+  Future<void> _getImage() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 800, maxHeight: 600);
+    if (pickedFile != null) {
+      setState(() => _image = File(pickedFile.path));
+    }
   }
 
   Future<void> _submitForm() async {
@@ -34,6 +46,7 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
           _titleController.text,
           double.parse(_latController.text),
           double.parse(_lonController.text),
+          _image?.path, // Pass the new image path, or null if not changed
         );
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${widget.landmark.title} updated')));
@@ -61,6 +74,8 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              _buildImagePicker(),
+              const SizedBox(height: 24),
               _buildTextFormField(_titleController, 'Title', Icons.title),
               const SizedBox(height: 16),
               Row(
@@ -82,6 +97,36 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: _getImage,
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(15.0),
+          border: Border.all(color: Colors.grey[400]!, width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13.0),
+          child: _image != null
+              ? Image.file(_image!, fit: BoxFit.cover)
+              : CachedNetworkImage(
+                  imageUrl: widget.landmark.image,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [Icon(Icons.camera_alt, size: 50, color: Colors.grey), Text('Tap to change image')],
+                    ),
+                  ),
+                ),
         ),
       ),
     );

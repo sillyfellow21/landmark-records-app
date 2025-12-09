@@ -42,8 +42,8 @@ class LandmarkProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateLandmark(String id, String title, double lat, double lon) async {
-    await _repository.updateLandmark(id, title, lat, lon);
+  Future<void> updateLandmark(String id, String title, double lat, double lon, [String? imagePath]) async {
+    await _repository.updateLandmark(id, title, lat, lon, imagePath);
     await fetchLandmarks(isRefresh: true);
   }
 }
