@@ -176,16 +176,25 @@ class RecordsScreen extends StatelessWidget {
   Future<bool?> _confirmDelete(BuildContext context, Landmark landmark) {
     return showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Confirm Delete'),
           content: Text('Are you sure you want to delete ${landmark.title}?'),
           actions: <Widget>[
-            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(context).pop(false)),
+            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(dialogContext).pop(false)),
             TextButton(child: const Text('Delete'), onPressed: () async {
-              await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
-              Navigator.of(context).pop(true);
+              try {
+                await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
+                Navigator.of(dialogContext).pop(true);
+              } catch (e) {
+                Navigator.of(dialogContext).pop(false);
+                showDialog(context: context, builder: (context) => AlertDialog(
+                  title: const Text('Error'),
+                  content: Text('Failed to delete landmark: ${e.toString()}'),
+                  actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+                ));
+              }
             }),
           ],
         );

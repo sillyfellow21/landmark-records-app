@@ -1,4 +1,4 @@
-// Final, definitive fix for all compatibility issues.
+// Final fix to ensure compatibility with older packages.
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -213,9 +213,18 @@ class _OverviewScreenState extends State<OverviewScreen> with SingleTickerProvid
           actions: <Widget>[
             TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(dialogContext).pop(false)),
             TextButton(child: const Text('Delete'), onPressed: () async {
-              await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
-              Navigator.of(dialogContext).pop(true);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
+              try {
+                await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
+                Navigator.of(dialogContext).pop(true);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
+              } catch (e) {
+                Navigator.of(dialogContext).pop(false);
+                showDialog(context: context, builder: (context) => AlertDialog(
+                  title: const Text('Error'),
+                  content: Text('Failed to delete landmark: ${e.toString()}'),
+                  actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+                ));
+              }
             }),
           ],
         );
