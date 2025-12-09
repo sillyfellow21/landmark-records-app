@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:landmark_records/app_constants.dart';
 import 'package:landmark_records/database_helper.dart';
 import 'package:landmark_records/landmark.dart';
 
 class LandmarkRepository {
   final dbHelper = DatabaseHelper.instance;
-  final String _apiUrl = 'https://labs.anontech.info/cse489/t3/api.php';
+  final String _apiUrl = AppConstants.apiBaseUrl;
 
   final List<Landmark> _defaultLandmarks = [
     Landmark(id: '1', title: 'Lalbagh Fort', lat: 23.7190, lon: 90.3888, image: 'lalbagh_fort.jpg'),
@@ -68,7 +69,6 @@ class LandmarkRepository {
   }
 
   Future<void> updateLandmark(String id, String title, double lat, double lon, [String? imagePath]) async {
-    // If no image is being updated, use the simple x-www-form-urlencoded PUT request.
     if (imagePath == null) {
       final response = await http.put(
         Uri.parse(_apiUrl),
@@ -79,8 +79,6 @@ class LandmarkRepository {
         throw Exception('Failed to update landmark text data');
       }
     } else {
-      // If an image is being updated, we must use a multipart PUT request.
-      // Note: The standard http.MultipartRequest is for POST, but we can set its method to PUT.
       var request = http.MultipartRequest('PUT', Uri.parse(_apiUrl));
       request.fields['id'] = id;
       request.fields['title'] = title;
@@ -90,7 +88,7 @@ class LandmarkRepository {
 
       var response = await request.send();
       if (response.statusCode != 200) {
-        throw Exception('Failed to update landmark with image');
+        throw Exception('Failed to update landmark with image. The server may not support multipart PUT requests.');
       }
     }
   }
