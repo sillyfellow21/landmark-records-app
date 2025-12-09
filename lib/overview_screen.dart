@@ -1,3 +1,4 @@
+// Final, definitive fix for all compatibility issues.
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -57,13 +58,11 @@ class _OverviewScreenState extends State<OverviewScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildMarkerClusterLayer(BuildContext context, List<Landmark> landmarks) {
+  MarkerClusterLayerWidget _buildMarkerClusterLayer(BuildContext context, List<Landmark> landmarks) {
     return MarkerClusterLayerWidget(
-      options: MarkerClusterOptions(
+      options: MarkerClusterLayerOptions(
         maxClusterRadius: 80,
         size: const Size(40, 40),
-        anchor: AnchorPos.align(AnchorAlign.center),
-        fitBoundsOptions: const FitBoundsOptions(padding: EdgeInsets.all(50)),
         markers: landmarks.map((landmark) => _buildAnimatedMarker(context, landmark)).toList(),
         builder: (context, markers) {
           return Container(
