@@ -39,3 +39,8 @@ This project uses OpenStreetMap for map services and a provider-based state mana
 - Image updates are not supported in the edit screen to simplify the API interaction. Only textual data can be modified.
 - The app relies on a public, unauthenticated API, which is not suitable for production use.
 - Offline caching for API-fetched data is not implemented. The default landmarks, however, are available offline.
+
+---
+
+## Changelog
+- Added final documentation and readme update.

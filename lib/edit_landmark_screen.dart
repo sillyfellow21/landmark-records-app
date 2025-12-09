@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:landmark_records/landmark.dart';
 import 'package:landmark_records/landmark_provider.dart';
 import 'package:provider/provider.dart';
@@ -26,9 +27,11 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
   @override
   void initState() {
     super.initState();
+    // The definitive fix: Use a locale-invariant NumberFormat to guarantee a period.
+    final formatter = NumberFormat('#.######', 'en_US');
     _titleController = TextEditingController(text: widget.landmark.title);
-    _latController = TextEditingController(text: widget.landmark.lat.toString());
-    _lonController = TextEditingController(text: widget.landmark.lon.toString());
+    _latController = TextEditingController(text: formatter.format(widget.landmark.lat));
+    _lonController = TextEditingController(text: formatter.format(widget.landmark.lon));
   }
 
   Future<void> _getImage() async {
@@ -41,12 +44,16 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
+        // Defensive sanitation is still a good practice.
+        final latString = _latController.text.replaceAll(',', '.');
+        final lonString = _lonController.text.replaceAll(',', '.');
+
         await Provider.of<LandmarkProvider>(context, listen: false).updateLandmark(
           widget.landmark.id,
           _titleController.text,
-          double.parse(_latController.text),
-          double.parse(_lonController.text),
-          _image?.path, // Pass the new image path, or null if not changed
+          double.parse(latString),
+          double.parse(lonString),
+          _image?.path,
         );
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${widget.landmark.title} updated')));
@@ -80,9 +87,9 @@ class _EditLandmarkScreenState extends State<EditLandmarkScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, TextInputType.number)),
+                  Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, const TextInputType.numberWithOptions(decimal: true))),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, TextInputType.number)),
+                  Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, const TextInputType.numberWithOptions(decimal: true))),
                 ],
               ),
               const SizedBox(height: 24),

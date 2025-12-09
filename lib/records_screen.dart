@@ -13,7 +13,8 @@ class RecordsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<LandmarkProvider>(
       builder: (context, landmarkProvider, child) {
-        if (landmarkProvider.state == AppState.loading) {
+        // Show shimmer for both initial and loading states
+        if (landmarkProvider.state == AppState.initial || landmarkProvider.state == AppState.loading) {
           return _buildShimmerLoading();
         }
 
@@ -21,6 +22,29 @@ class RecordsScreen extends StatelessWidget {
           return Center(child: Text('Error: ${landmarkProvider.errorMessage}'));
         }
 
+        // Handle the case where the list is empty
+        if (landmarkProvider.landmarks.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.list_alt_outlined, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No landmarks found.',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Pull down to refresh.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Display the list when data is available
         return RefreshIndicator(
           onRefresh: () => landmarkProvider.fetchLandmarks(isRefresh: true),
           child: ListView.builder(

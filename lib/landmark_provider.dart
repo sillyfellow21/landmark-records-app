@@ -31,9 +31,16 @@ class LandmarkProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // This is the definitive fix: Re-fetch the list from the server after a successful
+  // addition to get the correct, final data, including the new image URL.
   Future<void> addLandmark(String title, double lat, double lon, String imagePath) async {
-    await _repository.addLandmark(title, lat, lon, imagePath);
-    await fetchLandmarks(isRefresh: true);
+    try {
+      await _repository.addLandmark(title, lat, lon, imagePath);
+      await fetchLandmarks(isRefresh: true);
+    } catch (e) {
+      // Re-throw the exception to be caught by the UI.
+      rethrow;
+    }
   }
 
   Future<void> deleteLandmark(String id) async {

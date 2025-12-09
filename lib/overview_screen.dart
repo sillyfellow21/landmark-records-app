@@ -58,6 +58,7 @@ class _OverviewScreenState extends State<OverviewScreen> with SingleTickerProvid
     );
   }
 
+  // This is the final corrected widget with all invalid parameters removed.
   MarkerClusterLayerWidget _buildMarkerClusterLayer(BuildContext context, List<Landmark> landmarks) {
     return MarkerClusterLayerWidget(
       options: MarkerClusterLayerOptions(
@@ -213,18 +214,9 @@ class _OverviewScreenState extends State<OverviewScreen> with SingleTickerProvid
           actions: <Widget>[
             TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(dialogContext).pop(false)),
             TextButton(child: const Text('Delete'), onPressed: () async {
-              try {
-                await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
-                Navigator.of(dialogContext).pop(true);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
-              } catch (e) {
-                Navigator.of(dialogContext).pop(false);
-                showDialog(context: context, builder: (context) => AlertDialog(
-                  title: const Text('Error'),
-                  content: Text('Failed to delete landmark: ${e.toString()}'),
-                  actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
-                ));
-              }
+              await Provider.of<LandmarkProvider>(context, listen: false).deleteLandmark(landmark.id);
+              Navigator.of(dialogContext).pop(true);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${landmark.title} deleted')));
             }),
           ],
         );

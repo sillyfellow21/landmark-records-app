@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:landmark_records/landmark_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -30,9 +31,11 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   Future<void> _getCurrentLocation() async {
     try {
       Position position = await _determinePosition();
+      // The definitive fix: Use a locale-invariant NumberFormat to guarantee a period.
+      final formatter = NumberFormat('#.######', 'en_US');
       setState(() {
-        _latController.text = position.latitude.toString();
-        _lonController.text = position.longitude.toString();
+        _latController.text = formatter.format(position.latitude);
+        _lonController.text = formatter.format(position.longitude);
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -46,10 +49,14 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         return;
       }
       try {
+        // Defensive sanitation is still a good practice.
+        final latString = _latController.text.replaceAll(',', '.');
+        final lonString = _lonController.text.replaceAll(',', '.');
+
         await Provider.of<LandmarkProvider>(context, listen: false).addLandmark(
           _titleController.text,
-          double.parse(_latController.text),
-          double.parse(_lonController.text),
+          double.parse(latString),
+          double.parse(lonString),
           _image!.path,
         );
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Landmark added successfully!')));
@@ -80,9 +87,9 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, TextInputType.number)),
+                Expanded(child: _buildTextFormField(_latController, 'Latitude', Icons.gps_fixed, const TextInputType.numberWithOptions(decimal: true))),
                 const SizedBox(width: 16),
-                Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, TextInputType.number)),
+                Expanded(child: _buildTextFormField(_lonController, 'Longitude', Icons.gps_fixed, const TextInputType.numberWithOptions(decimal: true))),
               ],
             ),
             const SizedBox(height: 16),
