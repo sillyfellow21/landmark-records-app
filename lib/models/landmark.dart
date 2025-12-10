@@ -13,7 +13,6 @@ class Landmark {
     required this.image,
   });
 
-  // A more robust factory to handle potential nulls or incorrect data types from the API.
   factory Landmark.fromJson(Map<String, dynamic> json) {
     return Landmark(
       id: json['id'].toString(),

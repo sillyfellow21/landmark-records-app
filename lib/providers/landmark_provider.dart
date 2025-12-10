@@ -16,7 +16,7 @@ class LandmarkProvider with ChangeNotifier {
   String get errorMessage => _errorMessage;
 
   Future<void> fetchLandmarks({bool isRefresh = false}) async {
-    if (!isRefresh) {
+    if (!isRefresh && _state != AppState.loaded) {
       _state = AppState.loading;
       notifyListeners();
     }
@@ -40,14 +40,22 @@ class LandmarkProvider with ChangeNotifier {
     }
   }
 
+  // Definitive fix: Re-fetch the list from the server after a successful deletion.
   Future<void> deleteLandmark(String id) async {
-    await _repository.deleteLandmark(id);
-    _landmarks.removeWhere((landmark) => landmark.id == id);
-    notifyListeners();
+    try {
+      await _repository.deleteLandmark(id);
+      await fetchLandmarks(isRefresh: true);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> updateLandmark(String id, String title, double lat, double lon, [String? imagePath]) async {
-    await _repository.updateLandmark(id, title, lat, lon, imagePath);
-    await fetchLandmarks(isRefresh: true);
+    try {
+      await _repository.updateLandmark(id, title, lat, lon, imagePath);
+      await fetchLandmarks(isRefresh: true);
+    } catch (e) {
+      rethrow;
+    }
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -11,7 +10,6 @@ import 'package:landmark_records/database/database_helper.dart';
 class LandmarkRepository {
   final dbHelper = DatabaseHelper.instance;
   final String _apiUrl = AppConstants.apiBaseUrl;
-  final Dio _dio = Dio();
 
   Future<List<Landmark>> fetchLandmarks() async {
     try {
@@ -19,14 +17,12 @@ class LandmarkRepository {
       if (response.statusCode == 200) {
         final List<dynamic> jsonResponse = json.decode(response.body);
         final landmarks = jsonResponse.map((data) => Landmark.fromJson(data)).toList();
-        await _cacheLandmarks(landmarks); // Cache the new data
+        await _cacheLandmarks(landmarks);
         return landmarks;
       } else {
-        // On API failure, try to load from cache
         return _getCachedLandmarks();
       }
     } catch (e) {
-      // On network error, try to load from cache
       debugPrint('Fetch Landmarks Error: $e');
       return _getCachedLandmarks();
     }
@@ -40,8 +36,7 @@ class LandmarkRepository {
   }
 
   Future<List<Landmark>> _getCachedLandmarks() async {
-    final cached = await dbHelper.getLandmarks();
-    return cached; // Return whatever is in the cache, even if it's empty.
+    return await dbHelper.getLandmarks();
   }
 
   Future<String> addLandmark(String title, double lat, double lon, String imagePath) async {
