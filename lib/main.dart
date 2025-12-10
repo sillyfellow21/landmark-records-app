@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:landmark_records/landmark_provider.dart';
-import 'package:landmark_records/overview_screen.dart';
-import 'package:landmark_records/records_screen.dart';
-import 'package:landmark_records/new_entry_screen.dart';
+import 'package:landmark_records/providers/landmark_provider.dart';
+import 'package:landmark_records/screens/overview_screen.dart';
+import 'package:landmark_records/screens/records_screen.dart';
+import 'package:landmark_records/screens/new_entry_screen.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -15,35 +14,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return ChangeNotifierProvider(
       create: (context) => LandmarkProvider(),
       child: MaterialApp(
         title: 'Landmark Records',
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.teal,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF00796B), // Dark Teal
-            primary: const Color(0xFF00796B),
-            secondary: const Color(0xFFFFC107), // Amber
-            surface: const Color(0xFFF5F5F5), // Light Grey
-            background: Colors.white,
-            error: const Color(0xFFD32F2F), // Red
-          ),
-          textTheme: GoogleFonts.poppinsTextTheme(textTheme).copyWith(
-            titleLarge: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold),
-            titleMedium: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-            bodyMedium: GoogleFonts.poppins(fontSize: 14),
-          ),
-          appBarTheme: AppBarTheme(
-            backgroundColor: const Color(0xFF00796B),
+          scaffoldBackgroundColor: Colors.grey[100],
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.green,
             foregroundColor: Colors.white,
-            titleTextStyle: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+            elevation: 1,
           ),
-          bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-            selectedItemColor: Color(0xFF00796B),
-            unselectedItemColor: Colors.grey,
+          cardTheme: const CardThemeData(
+            elevation: 1.5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            ),
           ),
         ),
         home: const MainScreen(),
@@ -61,10 +49,11 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  static const List<Widget> _widgetOptions = <Widget>[
-    OverviewScreen(),
-    RecordsScreen(),
-    NewEntryScreen(),
+
+  final List<Widget> _screens = [
+    const OverviewScreen(),
+    const RecordsScreen(),
+    const NewEntryScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -76,7 +65,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    Provider.of<LandmarkProvider>(context, listen: false).fetchLandmarks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<LandmarkProvider>(context, listen: false).fetchLandmarks();
+    });
   }
 
   @override
@@ -86,24 +77,25 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('Landmark Records'),
         centerTitle: true,
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.teal,
+        unselectedItemColor: Colors.grey[600],
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
             label: 'Overview',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.list_alt_outlined),
-            activeIcon: Icon(Icons.list_alt),
             label: 'Records',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            activeIcon: Icon(Icons.add_circle),
+            icon: Icon(Icons.add_location_alt_outlined),
             label: 'New Entry',
           ),
         ],
