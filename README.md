@@ -36,11 +36,19 @@ This project uses OpenStreetMap for map services and a provider-based state mana
 ## 4. Known Limitations
 
 - The app currently does not support user authentication. All users share the same landmark data.
-- Image updates are not supported in the edit screen to simplify the API interaction. Only textual data can be modified.
 - The app relies on a public, unauthenticated API, which is not suitable for production use.
 - Offline caching for API-fetched data is not implemented. The default landmarks, however, are available offline.
 
----
+## 5. AI Usage Policy
 
-## Changelog
-- Added final documentation and readme update.
+In accordance with academic guidelines, AI tools were used to assist in the development of this project under the following rules:
+
+- AI can assist with boilerplate or examples.
+- You must rewrite, customize, and understand the code.
+- You must **not** paste AI-generated full apps without modifications.
+- You must note exactly where AI was used.
+
+An `ACADEMIC_INTEGRITY.md` file is included in this repository with a detailed breakdown of the AI's role.
+
+---
+*This commit is for the purpose of demonstrating a pull request.*
